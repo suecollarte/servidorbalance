@@ -328,3 +328,17 @@ const server = app.listen(PORT, ()=>{
 server.on('error', error=>{
     console.error(`Error en el servidor ${error}`);
 });
+server.on('request', (req,res)=>{
+    let {url}= req
+    if (url == '/random') {
+    
+    forkedProcess.send('Inicia');
+    forkedProcess.on('message', msg => {
+        console.log('mensaje desde el procesos secundario:');
+        console.log(msg);
+    });
+    
+
+    }
+    
+});

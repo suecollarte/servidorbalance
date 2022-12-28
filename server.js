@@ -16,6 +16,104 @@ import { Strategy } from "passport-local";
 const LocalStrategy = Strategy;
 
 const app = express();
+/* =============minimast ====*/
+import util from 'util';
+import os from 'os'
+
+/*========= */
+
+import { fork } from 'child_process';
+
+const forkedProcess = fork('./random.js');
+
+
+
+/*======= minimist ====*/
+import minimist from "minimist";
+process.on('exit', (code)=>{
+    let infoErr = {}
+    console.log('exit code',code);
+
+    switch (code) {
+        case 5:
+            infoErr = {
+                descripcion: 'error de tipo',
+                numeros: numeros,
+                tipos: tipos
+            }
+            break;
+        case -4:
+            infoErr = {
+                descripcion: 'Entrada vacia'
+            }
+            break;
+        case 0:
+            console.log('Ejecucion finalizada!');    
+    }
+    console.log(infoErr)
+});
+
+process.on('uncaughtException', (err)=>{
+    console.log('Error', err);
+    process.exit(2)
+});
+
+const args = minimist(process.argv.slice(2));
+const numeros = args._;
+
+/* Primera valdiacion: Los datos de entrada no deben estar vacios*/
+if (numeros.length === 0) {
+    console.log('args vacio')
+    process.exit(-4);
+}
+console.log('Datos recibidos', numeros);
+
+console.log('numeros: ', numeros);
+const tipos = tipo(numeros);
+console.log('Tipos de los datos: ', tipos);
+
+/* Segunda valdiacion: Tipos de datos deben ser numeros*/
+validacionTipo(tipos);
+
+const suma = numeros.reduce((a, b)=>{
+    let acumulador = 0;
+    acumulador = parseInt(a) + parseInt(b);
+    return acumulador;
+});
+
+const info = {
+    datos: {
+        numeros: numeros,
+        promedio: suma/numeros.length,
+        max: Math.max.apply(null, numeros),
+        min: Math.min.apply(null, numeros),
+        ejecutable: process.title,
+        pid: process.pid
+    }
+}
+console.log(info);
+
+/* =================== [ Utilitarios ] ===================*/
+function tipo(array) {
+    let arrayTipes = [];
+
+    array.forEach(element => {
+        arrayTipes.push(typeof(element));
+    });
+
+    return arrayTipes;
+}
+
+function validacionTipo(array) {
+    console.log('Se dispara la validacion 2')
+    array.forEach(element => {
+        if (element != 'number') {
+            console.log(element, 'number')
+            process.exit(5)
+        }
+    });
+}
+
 /*============================[Middlewares]============================*/
 
 
@@ -73,11 +171,11 @@ passport.deserializeUser((username, done)=>{
 
 /*----------- Session -----------*/
 app.use(session({
-    secret: process.env.SECRET_KEY,
-    resave: false,
+    secret: "algo",
+    resave: true,
     saveUninitialized: false,
     cookie: {
-        maxAge: 20000 //20 seg
+        maxAge: 864000 //20 seg
     }
 }))
 
@@ -147,6 +245,24 @@ app.get('/datos', isAuth, (req, res)=>{
     res.render('datos', {contador: req.user.contador, datos: datosUsuario});
 })
 
+app.get('/info', (req,res)=>{
+    const ll= process.cwd() + 'Id del proceso:'+process.pid
+    + 'Version de NodeJS:'+process.version
+    + 'Nombre del proceso:'+process.title
+    + 'Sistema Operativo::'+process.platform
+    + 'Uso memoria:'+ util.inspect(process.memoryUsage(), {showHidden: false, depth: 12, colors: true})
+
+    ;
+
+    const infor ={
+        directorio : ll
+    }
+    
+    res.render('infor',{infor:infor});
+})
+
+
+
 app.post('/register', async (req, res)=>{
     const {username, password, direccion } = req.body;
     const strConn = `mongodb://${config.db.host}:${config.db.port}/${config.db.dbName}`
@@ -175,6 +291,33 @@ app.get('/logout', (req, res)=> {
 
 app.get('/login-error', (req, res)=>{
     res.render('login-error');
+})
+
+
+/*===== FORK ===*/
+
+/*============================[Rutas]============================*/
+let visitas = 0;
+app.get('/', (req, res)=>{
+   res.send(`Cantidad de visitas: ${++visitas}`);
+});
+
+app.get('/random/:cant', (req, res)=>{
+    console.log(cant);
+    let suma = 0;
+    for (let i = 0; i < cant; i++) {
+        suma += i;
+    }
+    res.send(`suma: ${suma}`);
+})
+
+app.get('/calculo-nobloq', (req, res)=>{
+    forkedProcess.send('INICIA');
+    forkedProcess.on('message', msg => {
+        console.log('mensaje desde el procesos secundario:');
+        console.log(msg);
+    });
+    res.send('Sometido en segundo plano');
 })
 
 /*============================[Servidor]============================*/
